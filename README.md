@@ -9,7 +9,7 @@ This repository contains data and code to replicate the analysis in the paper: B
 The analysis uses data obtained from the National Council for Educational Development (CONAFE) and the Ministry of Public Education (SEP) in Mexico. Survey data is publicly available through the World Bank Microdata Library [2007](https://microdata.worldbank.org/index.php/catalog/1036), [2008](https://microdata.worldbank.org/index.php/catalog/1037), [2009](https://microdata.worldbank.org/index.php/catalog/1038), and [2010](https://microdata.worldbank.org/index.php/catalog/1039). Administraive data (school census and national test scores) may be obtained with Data Use Agreements with CONAFE and SEP. As per data use agreement with CONAFE and SEP, we provide de-identified data that links survey and administrative data as part of our replication files.   
 
 + “panel_school.dta”
-> This file contains school level data.
+> This file contains school level administrative data.
 
 + “panel_parent_long.dta”
 > This file contains parent association level data.
