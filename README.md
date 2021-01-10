@@ -23,7 +23,7 @@ The analysis uses data obtained from the National Council for Educational Develo
 ## Code
 All tables and figures in the paper can be replicated using the following programs:
 
-The program “01_toc.do” is a master do file that runs the programs that clean the data, generate key variables, and analyze the data. Run the programs in order as indicated by this master do file as later parts of the program rely on datasets generated in earlier parts.
+The program “01_toc.do” is a master do file that runs the programs to clean the data, generate key variables, and analyze the data. Run the programs in order as indicated by this master do file as later parts of the program rely on datasets generated in earlier parts.
 
 The programs "02_parentvars.do", "02_teachervars.do", and "02_studentvars.do" clean and generate variables needed for analysis. 
 
