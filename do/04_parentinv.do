@@ -2,7 +2,7 @@
 * Analysis: Treatment effect on parental involvement in schools
 
 * Author: Nozomi Nakajima
-* Date: Dec 2020
+* Date: June 2019
 
 
 drop _all
@@ -12,6 +12,10 @@ set maxvar 11000
 set matsize 11000
 set more off
 
+cd "/Users/nakajimaemiko/Desktop/Harvard Year3/AGE Mexico/new analysis/output"
+
+global data "/Users/nakajimaemiko/Desktop/Harvard Year3/AGE Mexico/new analysis/data"
+global output "/Users/nakajimaemiko/Desktop/Harvard Year3/AGE Mexico/new analysis/output"
 
 tempfile a b c d e
 
@@ -91,6 +95,7 @@ reg `var' i.exp_1##i.pb06 `var'2007 pb06_m if year == `year' & drop == 0, robust
   test 1.exp_1#1.pb06 = 0
   global p2_i`var'`year'_1: di %12.3fc r(p)
   global star2_i`var'`year'_1 = cond(r(p)<.01,"***", cond(r(p)<.05,"**", cond(r(p)<0.1,"*"," ")))
+
 }
 }
 
@@ -175,8 +180,11 @@ reg `var' i.exp_2##i.pb06 `var'2009 pb06_m if year == 2010 & drop == 0, robust c
 	scalar B = A[`x',4]
 	global wy_pv`x'2010_2: di %12.3fc B  
  }
- 
- 
+
+
+// control group difference between indigenous & general schools: 
+bysort modalidad: summ pv1 pv2 if year == 2008 & exp_1 == 0 & drop ==0
+
 
 *------------------------------------------------------------------------------*
 ** Experiment 3
@@ -313,7 +321,7 @@ reg pv`x' i.exp_3##i.pb06 `A`x'' `B', robust cluster(cct)
   global star2_ipv`x'2010_3 = cond(r(p)<.01,"***", cond(r(p)<.05,"**", cond(r(p)<0.1,"*"," "))) 
 
 }
-  
+
   
 * multiple hypothesis testing
 		

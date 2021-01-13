@@ -2,7 +2,7 @@
 * Analysis: Attrition
 
 * Author: Nozomi Nakajima
-* Date: Dec 2020
+* Date: June 2019
 
 
 drop _all
@@ -12,6 +12,10 @@ set maxvar 11000
 set matsize 11000
 set more off
 
+cd "/Users/nakajimaemiko/Desktop/Harvard Year3/AGE Mexico/new analysis/output"
+
+global data "/Users/nakajimaemiko/Desktop/Harvard Year3/AGE Mexico/new analysis/data"
+global output "/Users/nakajimaemiko/Desktop/Harvard Year3/AGE Mexico/new analysis/output"
 
 tempfile a b c d e
 
@@ -78,10 +82,6 @@ merge 1:1 cct year using "$data/panel_parent_long_clean.dta"
 	drop if _merge == 1
 	drop _merge 
 
-merge 1:1 cct year using "$data/panel_principal_long_clean.dta"
-	
-	drop _merge
-
 		
 *	Generate school type dummies	
 *------------------------------------------------------------------------------*
@@ -97,10 +97,6 @@ lab var mod2 "Indigenous school (1=Yes)"
 
 lab var parent_prim "Highest edu. is primary (1=Yes)"
 lab var pb21 "Years as president"
-
-lab var principaledu_col "Highest edu. is teaching college (1=Yes)" 
-lab var principaledu_uni "Highest edu. is university (1=Yes)" 
-lab var db28a "Years as principal"
 
 lab var teachedu_col "Prop. with teaching college degree"
 lab var teachedu_uni "Prop. with university degree"
@@ -130,7 +126,7 @@ summ `var' if year==2007 & exp_1 == 1 & drop == 0
   global mean11_`var': di %5.3f r(mean)
   global sd11_`var': di %-5.3f r(sd)
   
-reg `var' i.exp_1 if year==2007 & drop == 0, robust cluster(state)
+reg `var' i.exp_1 if year==2007 & drop == 0, robust
   global diff1_`var': di %-6.3fc _b[1.exp_1]
   global se1_`var': di %-4.3fc _se[1.exp_1]
    
@@ -149,7 +145,7 @@ summ `var' if year==2009 & exp_2 == 1 & drop == 0
   global mean21_`var': di %5.3f r(mean)
   global sd21_`var': di %-5.3f r(sd)
   
-reg `var' i.exp_2 if year==2009 & drop == 0, robust cluster(state)
+reg `var' i.exp_2 if year==2009 & drop == 0, robust
   global diff2_`var': di %-6.3fc _b[1.exp_2]
   global se2_`var' : di %-4.3fc _se[1.exp_2]
    
@@ -165,14 +161,14 @@ global label_`var': var label `var'
 
 
 * F-test for experiment 1
-reg exp_1 parent_prim pb21 pb06 teachedu_col teachedu_uni frate_tot_both rrate_tot_both drate_tot_both if year == 2007 & drop == 0, robust cluster(state)
+reg exp_1 parent_prim pb21 pb06 teachedu_col teachedu_uni frate_tot_both rrate_tot_both drate_tot_both if year == 2007 & drop == 0, robust
 testparm parent_prim pb21 teachedu_col teachedu_uni frate_tot_both rrate_tot_both drate_tot_both, equal 
 local f1 = r(p)
 local f1: di %6.3f `f1'
 
 
 * F-test for experiment 2
-reg exp_2 parent_prim pb21 pb06 teachedu_col teachedu_uni frate_tot_both rrate_tot_both drate_tot_both if year == 2009 & drop == 0, robust cluster(state)
+reg exp_2 parent_prim pb21 pb06 teachedu_col teachedu_uni frate_tot_both rrate_tot_both drate_tot_both if year == 2009 & drop == 0, robust
 testparm parent_prim pb21 teachedu_col teachedu_uni frate_tot_both rrate_tot_both drate_tot_both, equal 
 local f2 = r(p)
 local f2: di %6.3f `f2'

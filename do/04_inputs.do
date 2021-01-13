@@ -2,8 +2,7 @@
 * Analysis: Treatment effect on principal & teacher composition and teaching practices
 
 * Author: Nozomi Nakajima
-* Date: Dec 2020
-
+* Date: June 2019
 
 
 drop _all
@@ -12,6 +11,11 @@ set mem 30g
 set maxvar 11000
 set matsize 11000
 set more off
+
+cd "/Users/nakajimaemiko/Desktop/Harvard Year3/AGE Mexico/new analysis/output"
+
+global data "/Users/nakajimaemiko/Desktop/Harvard Year3/AGE Mexico/new analysis/data"
+global output "/Users/nakajimaemiko/Desktop/Harvard Year3/AGE Mexico/new analysis/output"
 
 tempfile a b c d e
 
@@ -175,6 +179,10 @@ reg `var' i.exp_2##i.ap03 i.grado female zwealth mothered mean`var'2009 female_m
 	global wy_c`x'2010_2: di %12.3fc B  
  }
 
+// control group difference between indigenous & non-indigenous schools: 
+bysort modalidad: summ c1 c2 if year == 2009 & exp_1 == 0 & drop ==0
+	* Maximum gap is .455 - .38 = .075
+	* 4.2 pp / 7.5 p.p. = 56 percent
 
 
 *------------------------------------------------------------------------------*
