@@ -54,6 +54,59 @@ drop _merge
 estimates drop _all
 
 
+* Get parental involvement variable at baseline for heterogeneity analysis
+*------------------------------------------------------------------------------*
+preserve
+
+use "$data/panel_parent_long_clean.dta", clear
+
+rename (pb51_1a pb51_1e pb51_1h pb48) ///
+(pv1 pv2 pv3 pv4) 
+
+save `a', replace
+
+keep estado year cct modalidad exp_1 exp_2 exp_3 drop turnover id_parent ///
+	 pv1 pv2 pv3 pv4
+
+reshape wide id_parent turnover ///
+	pv1 pv2 pv3 pv4, i(cct) j(year)	 
+
+	keep cct *2007 *2009
+	
+save `b', replace
+
+
+use `a', clear
+
+merge m:1 cct using `b'
+
+drop _merge
+
+estimates drop _all
+
+summ pv4 if year == 2007 & !missing(exp_1)
+
+gen bl_pv4 = .
+replace bl_pv4 = 0 if year == 2007 & !missing(exp_1) & pv4 < 83
+replace bl_pv4 = 1 if year == 2007 & !missing(exp_1) & pv4 >= 83 & pv4 < . 
+
+summ pv4 if year == 2009 & !missing(exp_2)
+
+replace bl_pv4 = 0 if year == 2009 & !missing(exp_2) & pv4 < 88
+replace bl_pv4 = 1 if year == 2009 & !missing(exp_2) & pv4 >= 88 & pv4 < . 
+
+egen base = min(bl_pv4), by(cct) 
+lab var base "Parent participation is above mean"
+
+keeporder estado cct year base
+save `a', replace
+
+restore
+
+merge m:1 cct year using `a'
+drop _merge
+
+
 *------------------------------------------------------------------------------*
 ** Experiment 1
 *------------------------------------------------------------------------------*  
@@ -74,6 +127,16 @@ reg `var' i.exp_1 mean`var'2007 if year == `year', robust cluster(cct)
   
   summ `var' if e(sample) & exp_1 == 0 
   global cm_`var'`year'_1: di %6.3fc r(mean)  
+  
+// parent participation
+reg `var' i.exp_1##i.base mean`var'2007 if year == `year', robust cluster(cct)
+  
+  global b3_i`var'`year'_1: di %12.3fc _b[1.exp_1#1.base]
+  global se3_i`var'`year'_1: di %-4.3fc _se[1.exp_1#1.base]
+  
+  test 1.exp_1#1.base = 0
+  global p3_i`var'`year'_1: di %12.3fc r(p)
+  global star3_i`var'`year'_1 = cond(r(p)<.01,"***", cond(r(p)<.05,"**", cond(r(p)<0.1,"*"," ")))  
 }
 }
 
@@ -118,6 +181,17 @@ reg `var' i.exp_2 mean`var'2009 if year == 2010, robust cluster(cct)
   summ `var' if e(sample) & exp_2 == 0 
   global cm_`var'2010_2: di %6.3fc r(mean)
   
+// parent participation
+reg `var' i.exp_2##i.base mean`var'2009 if year == 2010, robust cluster(cct)
+  matrix A = r(table)
+  
+  global b3_i`var'2010_2: di %12.3fc A[1,8]
+  global se3_i`var'2010_2: di %-4.3fc A[2,8]
+  
+  test 1.exp_2#1.base = 0
+  global p3_i`var'2010_2: di %12.3fc r(p)
+  global star3_i`var'2010_2 = cond(r(p)<.01,"***", cond(r(p)<.05,"**", cond(r(p)<0.1,"*"," ")))   
+  
 }  
 
 
@@ -152,7 +226,8 @@ teachedu_col teachedu_col_m teachedu_uni teachedu_uni_m ///
 v912 v912_m v913 v913_m v914 v914_m ///
 prom3_esp2009 prom4_esp2009 prom5_esp2009 prom3_mat2009 prom4_mat2009 prom5_mat2009 ///
 meaned12009 meaned22009 meaned32009 ///
-ed1 ed2 ed3 
+ed1 ed2 ed3 ///
+base
 
 save `a', replace
 
@@ -173,7 +248,7 @@ use `a', clear
 merge 1:1 cct using `b'
 drop _merge
 
-order cct-meaned32009 pb03-pb27_m ed1 ed2 ed3
+order cct-meaned32009 pb03-pb27_m ed1 ed2 ed3 base
 
 * Create binary variable for categorical variable
 
@@ -196,7 +271,7 @@ foreach var of varlist teachedu_col teachedu_uni prom3_esp2009 prom4_esp2009 pro
 
 }
 
-order cct-pb07 pb16a_2 pb16a_3 pb16a_4 pb16a_5 pb18_2 pb18_3 pb21-pb27_m teachedu_col_2-prom5_mat2009_2 ed1 ed2 ed3
+order cct-pb07 pb16a_2 pb16a_3 pb16a_4 pb16a_5 pb18_2 pb18_3 pb21-pb27_m teachedu_col_2-prom5_mat2009_2 ed1 ed2 ed3 base
 
 * Generate interactions of variables
 unab vars : teachedu_uni pb03 pb06 pb07 pb21 pb27
@@ -209,7 +284,7 @@ forval i = 1/`nvar' {
   }
 }
 
-order cct-prom5_mat2009_2 pb03Xteachedu_uni-pb27Xpb21 ed1 ed2 ed3
+order cct-prom5_mat2009_2 pb03Xteachedu_uni-pb27Xpb21 ed1 ed2 ed3 base
 
 
 * Estimation
@@ -248,6 +323,24 @@ reg ed`x' i.exp_3 `A`x'' `B', robust cluster(cct)
   summ ed`x' if e(sample) & exp_3 == 0
   global cm_ed`x'2010_3: di %6.3fc r(mean)
 }
+
+
+// lasso step 3 - parent participation
+	
+foreach x in 1 2 3 {
+	
+reg ed`x' i.exp_3##i.base `A`x'' `B', robust cluster(cct)
+  matrix A = r(table)
+
+  global b3_ied`x'2010_3: di %12.3fc A[1,8]
+  global se3_ied`x'2010_3: di %-4.3fc A[2,8]
+    
+  test 1.exp_3#1.base = 0
+  global p3_ied`x'2010_3: di %12.3fc r(p)
+  global star3_ied`x'2010_3 = cond(r(p)<.01,"***", cond(r(p)<.05,"**", cond(r(p)<0.1,"*"," "))) 
+ 
+}
+
 
 
   
@@ -293,6 +386,61 @@ egen mean`var'2 = mean(`var') if year == 2009, by(cct)
 egen mean`var'2009 = min(mean`var'2), by(cct)
 
 }
+
+
+* Get parental involvement variable at baseline for heterogeneity analysis
+*------------------------------------------------------------------------------*
+preserve
+
+use "$data/panel_parent_long_clean.dta", clear
+
+rename (pb51_1a pb51_1e pb51_1h pb48) ///
+(pv1 pv2 pv3 pv4) 
+
+save `a', replace
+
+keep estado year cct modalidad exp_1 exp_2 exp_3 drop turnover id_parent ///
+	 pv1 pv2 pv3 pv4
+
+reshape wide id_parent turnover ///
+	pv1 pv2 pv3 pv4, i(cct) j(year)	 
+
+	keep cct *2007 *2009
+	
+save `b', replace
+
+
+use `a', clear
+
+merge m:1 cct using `b'
+
+drop _merge
+
+estimates drop _all
+
+summ pv4 if year == 2007 & !missing(exp_1)
+
+gen bl_pv4 = .
+replace bl_pv4 = 0 if year == 2007 & !missing(exp_1) & pv4 < 83
+replace bl_pv4 = 1 if year == 2007 & !missing(exp_1) & pv4 >= 83 & pv4 < . 
+
+summ pv4 if year == 2009 & !missing(exp_2)
+
+replace bl_pv4 = 0 if year == 2009 & !missing(exp_2) & pv4 < 88
+replace bl_pv4 = 1 if year == 2009 & !missing(exp_2) & pv4 >= 88 & pv4 < . 
+
+egen base = min(bl_pv4), by(cct) 
+lab var base "Parent participation is above mean"
+
+keeporder estado cct year base
+save `a', replace
+
+restore
+
+merge m:1 cct year using `a'
+drop _merge
+
+
 *------------------------------------------------------------------------------*
 ** Experiment 1
 *------------------------------------------------------------------------------*  
@@ -333,6 +481,17 @@ reg `var' i.exp_1##i.ap03 i.grado female zwealth mothered mean`var'2007 female_m
   global p2_i`var'`year'_1: di %12.3fc r(p)
   global star2_i`var'`year'_1 = cond(r(p)<.01,"***", cond(r(p)<.05,"**", cond(r(p)<0.1,"*"," ")))
 
+  
+// parent participation
+reg `var' i.exp_1##i.base i.grado female zwealth mothered mean`var'2007 female_m zwealth_m mothered_m ap03_m if year == `year' & drop == 0, robust cluster(cct)
+  matrix A = r(table)
+
+  global b3_i`var'`year'_1: di %12.3fc _b[1.exp_1#1.base]
+  global se3_i`var'`year'_1: di %-4.3fc _se[1.exp_1#1.base]
+  
+  test 1.exp_1#1.base = 0
+  global p3_i`var'`year'_1: di %12.3fc r(p)
+  global star3_i`var'`year'_1 = cond(r(p)<.01,"***", cond(r(p)<.05,"**", cond(r(p)<0.1,"*"," ")))  
      
 }
 }
@@ -396,6 +555,18 @@ reg `var' i.exp_2##i.ap03 i.grado female zwealth mothered mean`var'2009 female_m
   global p2_i`var'2010_2: di %12.3fc r(p)
   global star2_i`var'2010_2 = cond(r(p)<.01,"***", cond(r(p)<.05,"**", cond(r(p)<0.1,"*"," ")))
 
+
+// parent participation
+reg `var' i.exp_2##i.base i.grado female zwealth mothered mean`var'2009 female_m zwealth_m mothered_m ap03_m if year == 2010 & drop == 0, robust cluster(cct)
+  matrix A = r(table)
+  
+  global b3_i`var'2010_2: di %12.3fc _b[1.exp_2#1.base]
+  global se3_i`var'2010_2: di %-4.3fc _se[1.exp_2#1.base]
+  
+  test 1.exp_2#1.base = 0
+  global p3_i`var'2010_2: di %12.3fc r(p)
+  global star3_i`var'2010_2 = cond(r(p)<.01,"***", cond(r(p)<.05,"**", cond(r(p)<0.1,"*"," ")))
+
   }  
   
 
@@ -443,7 +614,8 @@ keeporder estado-id_student female ap03-ap51 ap03_m-ap51_m zwealth ///
 mb03 mb06 mb16 mb34a mb36a mb28 mb03_m mb06_m mb16_m mb34a_m mb36a_m mb28_m ///
 teacheredu_col teacheredu_uni ///
 meaned42009 meaned52009 meaned62009 ///
-ed4 ed5 ed6 
+ed4 ed5 ed6 ///
+base
 
 * Create binary variable for categorical variable
 tab grado, gen(grado_)
@@ -461,7 +633,7 @@ tab ap51, gen(ap51_)
   la var ap51_7 "Mother education: No se"
 
 
-order estado-female grado_2 grado_3 ap03-ap48 ap51_2-ap51_7 ap03_m-ed6
+order estado-female grado_2 grado_3 ap03-ap48 ap51_2-ap51_7 ap03_m-ed6 base
   
 * Generate interactions of variables
 unab vars : grado_2-ap51_7 mb03-mb28
@@ -474,7 +646,7 @@ forval i = 1/`nvar' {
   }
 }
 
-order estado-meaned62009 grado_3Xgrado_2-mb28Xmb36a ed4 ed5 ed6
+order estado-meaned62009 grado_3Xgrado_2-mb28Xmb36a ed4 ed5 ed6 base
 
 
 * Estimation 
@@ -533,6 +705,21 @@ reg ed`x' i.exp_3##i.ap03 `A`x'' `B', robust cluster(cct)
   test 1.exp_3#1.ap03 = 0
   global p2_ied`x'2010_3: di %12.3fc r(p)
   global star2_ied`x'2010_3 = cond(r(p)<.01,"***", cond(r(p)<.05,"**", cond(r(p)<0.1,"*"," "))) 
+ 
+}
+
+// lasso step 3 - parent participation 
+foreach x in 4 5 6 {
+	
+reg ed`x' i.exp_3##i.base `A`x'' `B', robust cluster(cct)
+  matrix A = r(table)
+  
+  global b3_ied`x'2010_3: di %12.3fc A[1,8]
+  global se3_ied`x'2010_3: di %-4.3fc A[2,8]
+    
+  test 1.exp_3#1.base = 0
+  global p3_ied`x'2010_3: di %12.3fc r(p)
+  global star3_ied`x'2010_3 = cond(r(p)<.01,"***", cond(r(p)<.05,"**", cond(r(p)<0.1,"*"," "))) 
  
 }
   
@@ -640,7 +827,7 @@ texdoc close
 
 *------------------------------------------------------------------------------*
 *------------------------------------------------------------------------------*
-*	Table: Table: Treatment x Indigenous (only for student level)
+*	Table: Treatment x Indigenous (only for student level)
 *------------------------------------------------------------------------------*
 *------------------------------------------------------------------------------*
 
@@ -701,3 +888,76 @@ tex & (${se2_ied42010_3}) & (${se2_ied52010_3}) & (${se2_ied62010_3}) \\[0.1cm]
 tex \hline
 
 tex \end{tabular}
+
+
+
+*------------------------------------------------------------------------------*
+*------------------------------------------------------------------------------*
+*	Table: Treatment x Parent Participation
+*------------------------------------------------------------------------------*
+*------------------------------------------------------------------------------*
+
+texdoc init eduoutcomes_ppar.tex, replace force
+
+tex \begin{tabular}{lcccccc} \toprule
+
+tex  & \multicolumn{3}{c}{School-level} & \multicolumn{3}{c}{Student-level} \\ \cmidrule(l{5pt}r{5pt}){2-4} \cmidrule(l{5pt}r{5pt}){5-7}
+
+tex  & (1) & (2) & (3) & (4) & (5) & (6) \\ 
+tex  & \shortstack{Failure\\rate} & \shortstack{Dropout\\rate} & \shortstack{Repetition\\rate} & \shortstack{Spanish\\test (S.D.)} & \shortstack{Math\\test (S.D.)} & \shortstack{Disciplinary\\action}\\ \hline \hline
+	
+	
+tex \multicolumn{4}{l}{\textit{Double grant experiment}} \\ 
+
+tex \multicolumn{4}{l}{(1 year)} \\ 
+	
+tex {Treatment x Parents} & ${b3_ied12008_1}${star3_ied12008_1} & ${b3_ied22008_1}${star3_ied22008_1} & ${b3_ied32008_1}${star3_ied32008_1} & ${b3_ied42008_1}${star3_ied42008_1} & ${b3_ied52008_1}${star3_ied52008_1} & ${b3_ied62008_1}${star3_ied62008_1} \\
+
+tex & (${se3_ied12008_1}) & (${se3_ied22008_1}) & (${se3_ied32008_1}) & (${se3_ied42008_1}) & (${se3_ied52008_1}) & (${se3_ied62008_1}) \\[0.1cm]
+
+
+tex \multicolumn{4}{l}{(2 year)} \\ 
+
+tex {Treatment x Parents} & ${b3_ied12009_1}${star3_ied12009_1} & ${b3_ied22009_1}${star3_ied22009_1} & ${b3_ied32009_1}${star3_ied32009_1} & ${b3_ied42009_1}${star3_ied42009_1} & ${b3_ied52009_1}${star3_ied52009_1} & ${b3_ied62009_1}${star3_ied62009_1} \\
+
+tex & (${se3_ied12009_1}) & (${se3_ied22009_1}) & (${se3_ied32009_1}) & (${se3_ied42009_1}) & (${se3_ied52009_1}) & (${se3_ied62009_1}) \\[0.1cm]
+
+
+tex \multicolumn{4}{l}{(3 year)} \\ 
+
+tex {Treatment x Parents} & ${b3_ied12010_1}${star3_ied12010_1} & ${b3_ied22010_1}${star3_ied22010_1} & ${b3_ied32010_1}${star3_ied32010_1} & ${b3_ied42010_1}${star3_ied42010_1} & ${b3_ied52010_1}${star3_ied52010_1} & ${b3_ied62010_1}${star3_ied62010_1} \\
+
+tex & (${se3_ied12010_1}) & (${se3_ied22010_1}) & (${se3_ied32010_1}) & (${se3_ied42010_1}) & (${se3_ied52010_1}) & (${se3_ied62010_1}) \\[0.1cm]
+
+
+tex \hline \hline
+
+
+tex \multicolumn{4}{l}{\textit{Information experiment}} \\ 
+
+tex \multicolumn{4}{l}{(1 year)} \\ 
+
+tex {Treatment x Parents} & ${b3_ied12010_2}${star3_ied12010_2} & ${b3_ied22010_2}${star3_ied22010_2} & ${b3_ied32010_2}${star3_ied32010_2} & ${b3_ied42010_2}${star3_ied42010_2} & ${b3_ied52010_2}${star3_ied52010_2} & ${b3_ied62010_2}${star3_ied62010_2} \\
+
+tex & (${se3_ied12010_2}) & (${se3_ied22010_2}) & (${se3_ied32010_2}) & (${se3_ied42010_2}) & (${se3_ied52010_2}) & (${se3_ied62010_2}) \\[0.1cm]
+
+
+
+tex \hline \hline
+
+
+tex \multicolumn{4}{l}{\textit{Single grant observation}} \\ 
+
+tex \multicolumn{4}{l}{(1 year)} \\ 
+	
+tex {Treatment x Parents} & ${b3_ied12010_3}${star3_ied12010_3} & ${b3_ied22010_3}${star3_ied22010_3} & ${b3_ied32010_3}${star3_ied32010_3} & ${b3_ied42010_3}${star3_ied42010_3} & ${b3_ied52010_3}${star3_ied52010_3} & ${b3_ied62010_3}${star3_ied62010_3} \\
+
+tex & (${se3_ied12010_3}) & (${se3_ied22010_3}) & (${se3_ied32010_3}) & (${se3_ied42010_3}) & (${se3_ied52010_3}) & (${se3_ied62010_3}) \\[0.1cm]
+
+
+
+tex \hline
+
+tex \end{tabular}
+
+texdoc close 

@@ -1,7 +1,7 @@
 
 * AGE data prep & analysis
 * Author: Nozomi Nakajima
-* Date: December 2020
+* Date: September 1, 2021
 
 * This is the Master do file that executes all of the do files.
 
@@ -36,7 +36,6 @@ do "$do/02_studentvars.do"
 	* Cleans & generates student variables for analysis	
 	* Produces "panel_student_long_clean.dta"	
 	
-	
 *-----------------------*
 * Baseline balance table
 *-----------------------*
@@ -68,7 +67,7 @@ do "$do/04_information.do"
 // Parental Involvement	
 do "$do/04_parentinv.do"
 	* Effect of treatments on parental involvement
-	* Produces Table 4 & Table A3
+	* Produces Table 4 & Table A3 & Table A4
 	
 do "$do/04_parentinv_pds.do"
 	* Robustness check of post-double selection lasso estimation 
@@ -77,7 +76,7 @@ do "$do/04_parentinv_pds.do"
 // Parent & Teacher Inputs	
 do "$do/04_inputs.do"
 	* Effect of treatments on parent & teacher inputs
-	* Produces Table 5 & Table A4
+	* Produces Table 5 & Table A5 & Table A6
 	
 do "$do/04_inputs_pds.do"
 	* Robustness check of post-double selection lasso estimation  
@@ -86,7 +85,7 @@ do "$do/04_inputs_pds.do"
 // Education outcomes
 do "$do/04_eduoutcomes.do"
 	* Effect of treatments on educational outcomes
-	* Produces Table 6 & Table A5
+	* Produces Table 6 & Table A7 & Table A8
 
 do "$do/04_eduoutcomes_pds.do"
 	* Robustness check of post-double selection lasso estimation  
@@ -134,7 +133,7 @@ do "$do/06_attrition.do"
 
 do "$do/07_interpret.do"
 	* Regress constructed index on baseline covariates
-	* Produces Table A6
+	* Produces Table A9
 
 
 

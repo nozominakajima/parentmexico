@@ -57,6 +57,24 @@ drop _merge
 estimates drop _all
 
 
+* Generate binary variable for baseline level of parent participation
+*------------------------------------------------------------------------------*
+
+summ pv4 if year == 2007 & !missing(exp_1)
+
+gen bl_pv4 = .
+replace bl_pv4 = 0 if year == 2007 & !missing(exp_1) & pv4 < 83
+replace bl_pv4 = 1 if year == 2007 & !missing(exp_1) & pv4 >= 83 & pv4 < . 
+
+summ pv4 if year == 2009 & !missing(exp_2)
+
+replace bl_pv4 = 0 if year == 2009 & !missing(exp_2) & pv4 < 88
+replace bl_pv4 = 1 if year == 2009 & !missing(exp_2) & pv4 >= 88 & pv4 < . 
+
+egen base = min(bl_pv4), by(cct) 
+lab var base "Parent participation is above mean"
+
+
 *------------------------------------------------------------------------------*
 ** Experiment 1
 *------------------------------------------------------------------------------*  
@@ -96,6 +114,17 @@ reg `var' i.exp_1##i.pb06 `var'2007 pb06_m if year == `year' & drop == 0, robust
   global p2_i`var'`year'_1: di %12.3fc r(p)
   global star2_i`var'`year'_1 = cond(r(p)<.01,"***", cond(r(p)<.05,"**", cond(r(p)<0.1,"*"," ")))
 
+// parent participation (base  == 1)
+reg `var' i.exp_1##i.base `var'2007 if year == `year' & drop == 0, robust cluster(cct)
+  matrix A = r(table)
+  
+  global b3_i`var'`year'_1: di %12.3fc A[1,8]
+  global se3_i`var'`year'_1: di %-4.3fc A[2,8]
+  
+  test 1.exp_1#1.base = 0
+  global p3_i`var'`year'_1: di %12.3fc r(p)
+  global star3_i`var'`year'_1 = cond(r(p)<.01,"***", cond(r(p)<.05,"**", cond(r(p)<0.1,"*"," "))) 
+  
 }
 }
 
@@ -161,6 +190,18 @@ reg `var' i.exp_2##i.pb06 `var'2009 pb06_m if year == 2010 & drop == 0, robust c
   global p2_i`var'2010_2: di %12.3fc r(p)
   global star2_i`var'2010_2 = cond(r(p)<.01,"***", cond(r(p)<.05,"**", cond(r(p)<0.1,"*"," "))) 
 
+
+// parent participation (base  == 1)
+reg `var' i.exp_2##i.base `var'2009 if year == 2010 & drop == 0, robust cluster(cct)
+  matrix A = r(table)
+  
+  global b3_i`var'2010_2: di %12.3fc A[1,8]
+  global se3_i`var'2010_2: di %-4.3fc A[2,8]
+  
+  test 1.exp_2#1.base = 0
+  global p3_i`var'2010_2: di %12.3fc r(p)
+  global star3_i`var'2010_2 = cond(r(p)<.01,"***", cond(r(p)<.05,"**", cond(r(p)<0.1,"*"," "))) 
+  
 }  
 
 
@@ -199,7 +240,8 @@ keep estado cct modalidad exp_1 exp_2 exp_3 id_parent drop ///
 pb03 pb06 pb07 pb16a pb18 pb21 pb27 pb37 pb39 ///
 pb03_m pb06_m pb07_m pb16a_m pb18_m pb21_m pb27_m pb37_m pb39_m ///
 pv1 pv2 pv3 pv4 ///
-pv12009 pv22009 pv32009 pv42009 
+pv12009 pv22009 pv32009 pv42009 ///
+base
 
 save `a', replace
 
@@ -226,7 +268,7 @@ use `a', clear
 merge 1:1 cct using `b'
 drop _merge
 
-keeporder estado-id_parent drop pb03-pb39 pb03_m-pb39_m pv42009-v914_m2009 pv1 pv2 pv3 pv4 
+keeporder estado-id_parent drop pb03-pb39 pb03_m-pb39_m pv42009-v914_m2009 pv1 pv2 pv3 pv4 base
 
 
 * Create binary variable for categorical variable
@@ -243,7 +285,7 @@ drop pb18 pb18_1
 la var pb18_2 "Election"
 la var pb18_3 "Other"
   
-order estado-id_parent drop pb03-pb07 pb16a_2-pb18_3 pb21-pb37 pb39 pb03_m-pb39_m pv42009-v914_m2009 pv1 pv2 pv3 pv4 
+order estado-id_parent drop pb03-pb07 pb16a_2-pb18_3 pb21-pb37 pb39 pb03_m-pb39_m pv42009-v914_m2009 pv1 pv2 pv3 pv4 base
  
  
 * Generate interactions of variables
@@ -258,7 +300,7 @@ forval i = 1/`nvar' {
   }
 }
 
-order estado-v914_m2009 pb06Xpb03-pb39Xpb37 pv1 pv2 pv3 pv4
+order estado-v914_m2009 pb06Xpb03-pb39Xpb37 pv1 pv2 pv3 pv4 base
 
 
 * Estimation 
@@ -319,6 +361,21 @@ reg pv`x' i.exp_3##i.pb06 `A`x'' `B', robust cluster(cct)
   test 1.exp_3#1.pb06 = 0
   global p2_ipv`x'2010_3: di %12.3fc r(p)
   global star2_ipv`x'2010_3 = cond(r(p)<.01,"***", cond(r(p)<.05,"**", cond(r(p)<0.1,"*"," "))) 
+
+}
+
+// lasso step 3 - parent participation (base == 1)  
+foreach x in 1 2 3 4 {
+	
+reg pv`x' i.exp_3##i.base `A`x'' `B', robust cluster(cct)
+  matrix A = r(table)
+    
+  global b3_ipv`x'2010_3: di %12.3fc A[1,8]
+  global se3_ipv`x'2010_3: di %-4.3fc A[2,8]
+    
+  test 1.exp_3#1.base = 0
+  global p3_ipv`x'2010_3: di %12.3fc r(p)
+  global star3_ipv`x'2010_3 = cond(r(p)<.01,"***", cond(r(p)<.05,"**", cond(r(p)<0.1,"*"," "))) 
 
 }
 
@@ -489,3 +546,66 @@ tex \hline
 tex \end{tabular}
 
 
+*------------------------------------------------------------------------------*
+*------------------------------------------------------------------------------*   
+*	Table: Treatment x Parent Participation
+*------------------------------------------------------------------------------*
+*------------------------------------------------------------------------------*
+
+texdoc init parentinv_ppar.tex, replace force
+
+tex \begin{tabular}{lcccc} \toprule
+
+tex  & {\shortstack{Organized\\school activities\\ \& events}} & {\shortstack{Met with\\ teachers to discuss \\student performance}} & {\shortstack{Involved in\\school\\decision making}} & {\shortstack{Percent of parents\\regularly attending\\meetings}} \\ 
+
+tex  & (1) & (2) & (3) & (4) \\ \hline
+	
+tex \multicolumn{4}{l}{\textit{Double grant experiment}} \\ 
+	
+tex \multicolumn{4}{l}{(1 year)} \\ 
+  
+  tex {Treatment x Parents} & ${b3_ipv12008_1}${star3_ipv12008_1} & ${b3_ipv22008_1}${star3_ipv22008_1} & ${b3_ipv32008_1}${star3_ipv32008_1} & ${b3_ipv42008_1}${star3_ipv42008_1} \\
+
+tex & (${se3_ipv12008_1}) & (${se3_ipv22008_1}) & (${se3_ipv32008_1}) & (${se3_ipv42008_1}) \\[0.1cm]
+
+
+tex \multicolumn{4}{l}{(2 year)} \\ 
+  
+tex {Treatment x Parents} & ${b3_ipv12009_1}${star3_ipv12009_1} & ${b3_ipv22009_1}${star3_ipv22009_1} & ${b3_ipv32009_1}${star3_ipv32009_1} & ${b3_ipv42009_1}${star3_ipv42009_1} \\
+
+tex & (${se3_ipv12009_1}) & (${se3_ipv22009_1}) & (${se3_ipv32009_1}) & (${se3_ipv42009_1}) \\[0.1cm]
+
+
+tex \multicolumn{4}{l}{(3 year)} \\ 
+  
+tex {Treatment x Parents} & ${b3_ipv12010_1}${star3_ipv12010_1} & ${b3_ipv22010_1}${star3_ipv22010_1} & ${b3_ipv32010_1}${star3_ipv32010_1} & ${b3_ipv42010_1}${star3_ipv42010_1} \\
+
+tex & (${se3_ipv12010_1}) & (${se3_ipv22010_1}) & (${se3_ipv32010_1}) & (${se3_ipv42010_1}) \\[0.1cm]
+
+
+tex \hline \hline
+
+
+tex \multicolumn{4}{l}{\textit{Information experiment}} \\ 
+
+tex \multicolumn{4}{l}{(1 year)} \\ 
+  
+tex {Treatment x Parents} & ${b3_ipv12010_2}${star3_ipv12010_2} & ${b3_ipv22010_2}${star3_ipv22010_2} & ${b3_ipv32010_2}${star3_ipv32010_2} & ${b3_ipv42010_2}${star3_ipv42010_2} \\
+
+tex & (${se3_ipv12010_2}) & (${se3_ipv22010_2}) & (${se3_ipv32010_2}) & (${se3_ipv42010_2}) \\[0.1cm]
+
+
+tex \hline \hline
+
+
+tex \multicolumn{4}{l}{\textit{Single grant observation}} \\ 
+	
+tex \multicolumn{4}{l}{(1 year)} \\ 
+  
+tex {Treatment x Parents} & ${b3_ipv12010_3}${star3_ipv12010_3} & ${b3_ipv22010_3}${star3_ipv22010_3} & ${b3_ipv32010_3}${star3_ipv32010_3} & ${b3_ipv42010_3}${star3_ipv42010_3} \\
+
+tex & (${se3_ipv12010_3}) & (${se3_ipv22010_3}) & (${se3_ipv32010_3}) & (${se3_ipv42010_3}) \\[0.1cm]
+
+tex \hline
+
+tex \end{tabular}
